@@ -2,22 +2,19 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SupportedLanguage, CEFRLevel } from "../types";
 
-// Ultra-defensive helper to get the API key without crashing the script
-const safeGetApiKey = (): string => {
-  try {
-    // Check globalThis for process (standard for many bundlers/environments)
-    // @ts-ignore
-    const key = globalThis?.process?.env?.API_KEY || '';
-    if (key) return key;
-  } catch (e) {}
-  
-  // Fallback to empty string; the AI calls will fail gracefully later 
-  // rather than crashing the entire app boot sequence.
-  return '';
+/**
+ * Validates presence of API key without throwing.
+ * Used for UI-level guardrails.
+ */
+export const isApiKeyPresent = (): boolean => {
+  return !!process.env.API_KEY;
 };
 
 const getAI = () => {
-  const apiKey = safeGetApiKey();
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("Missing Gemini API Key. Please configure process.env.API_KEY.");
+  }
   return new GoogleGenAI({ apiKey });
 };
 

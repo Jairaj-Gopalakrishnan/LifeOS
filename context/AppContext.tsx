@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { UserStats, Task, Page, StudyResource, JournalEntry, Milestone, VocabularyTerm, TaskCategory } from '../types';
+import { isApiKeyPresent } from '../services/gemini';
 
 interface AppContextType {
   stats: UserStats;
@@ -27,6 +28,7 @@ interface AppContextType {
   activePage: Page;
   setActivePage: (page: Page) => void;
   isLoaded: boolean;
+  apiKeyAvailable: boolean;
 }
 
 const DEFAULT_STATS: UserStats = {
@@ -70,16 +72,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [taskCategories, setTaskCategories] = useState<TaskCategory[]>(DEFAULT_CATEGORIES);
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [apiKeyAvailable, setApiKeyAvailable] = useState(false);
 
   useEffect(() => {
-    console.log("LifeOS: Starting system hydration...");
-    const timeout = setTimeout(() => {
-      if (!isLoaded) {
-        console.warn("LifeOS: Hydration timeout. Forcing system mount.");
-        setIsLoaded(true);
-      }
-    }, 2000);
-
+    console.log("LifeOS: Hydration sequence initiated.");
+    setApiKeyAvailable(isApiKeyPresent());
+    
     if (typeof window !== 'undefined') {
       try {
         const get = (key: string) => {
@@ -103,16 +101,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (m) setMilestones(m);
         if (c) setTaskCategories(c);
         
-        console.log("LifeOS: Data persistence linked.");
+        console.log("LifeOS: System state restored.");
       } catch (e) {
-        console.error("LifeOS: Persistence Link Failure", e);
+        console.warn("LifeOS: Restructuring failed. Falling back to core defaults.", e);
       } finally {
         setIsLoaded(true);
-        clearTimeout(timeout);
       }
     }
-    
-    return () => clearTimeout(timeout);
   }, []);
 
   useEffect(() => {
@@ -126,7 +121,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem('lifeos_milestones', JSON.stringify(milestones));
         localStorage.setItem('lifeos_task_categories', JSON.stringify(taskCategories));
       } catch (e) {
-        console.error("LifeOS: Persistence Save Failure", e);
+        console.error("LifeOS: Integrity save failure.", e);
       }
     }
   }, [stats, tasks, resources, vocabulary, journal, milestones, taskCategories, isLoaded]);
@@ -235,7 +230,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const removeTaskCategory = (id: string) => {
-    if (['fitness', 'brand', 'academy', 'growth'].includes(id)) return; // Prevent deleting core categories
+    if (['fitness', 'brand', 'academy', 'growth'].includes(id)) return;
     setTaskCategories(prev => prev.filter(c => c.id !== id));
   };
 
@@ -246,7 +241,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addVocabulary, updateVocabulary, removeVocabulary,
       updateJournal, addMilestone, removeMilestone,
       addTaskCategory, removeTaskCategory,
-      activePage, setActivePage, isLoaded 
+      activePage, setActivePage, isLoaded, apiKeyAvailable
     }}>
       {children}
     </AppContext.Provider>

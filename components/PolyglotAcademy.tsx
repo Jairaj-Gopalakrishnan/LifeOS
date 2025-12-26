@@ -8,11 +8,11 @@ import {
   Trash2, PlusCircle, Maximize2, Minimize2,
   BrainCircuit, RotateCcw,
   Lightbulb, BookText, BarChart2, X, Plus, Edit2, Save,
-  Type, AlignJustify
+  Type, AlignJustify, AlertTriangle, Settings
 } from 'lucide-react';
 
 export const PolyglotAcademy: React.FC = () => {
-  const { addXp, vocabulary, addVocabulary, updateVocabulary, removeVocabulary, completeTask } = useAppContext();
+  const { addXp, vocabulary, addVocabulary, updateVocabulary, removeVocabulary, completeTask, apiKeyAvailable } = useAppContext();
   const [lang, setLang] = useState<SupportedLanguage>('dutch');
   const [level, setLevel] = useState<CEFRLevel>('A1');
 
@@ -60,26 +60,32 @@ export const PolyglotAcademy: React.FC = () => {
     if (typeof window !== 'undefined') {
       localStorage.setItem(`lifeos_level_${lang}`, level);
     }
-    refreshDailyReading();
-    refreshDrill();
+    if (apiKeyAvailable) {
+      refreshDailyReading();
+      refreshDrill();
+    }
     setMessages([]);
-  }, [lang, level]);
+  }, [lang, level, apiKeyAvailable]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
   const refreshDailyReading = async () => {
+    if (!apiKeyAvailable) return;
     setLoadingReading(true);
     try {
       const data = await getDailyReadingProse(lang, level);
       setReading(data);
+    } catch (e) {
+      console.error("Reading stream failed:", e);
     } finally {
       setLoadingReading(false);
     }
   };
 
   const refreshDrill = async () => {
+    if (!apiKeyAvailable) return;
     setLoadingDrill(true);
     setDrillResult(null);
     setDrillInput('');
@@ -87,6 +93,8 @@ export const PolyglotAcademy: React.FC = () => {
       const currentVocab = vocabulary.filter(v => v.language === lang).map(v => v.term);
       const data = await getScaffoldedDrill(lang, level, currentVocab.length > 0 ? currentVocab : ['Strategy', 'Logic']);
       setDrill(data);
+    } catch (e) {
+      console.error("Drill stream failed:", e);
     } finally {
       setLoadingDrill(false);
     }
@@ -99,14 +107,14 @@ export const PolyglotAcademy: React.FC = () => {
     if (isCorrect) {
       setDrillResult('correct');
       addXp(100);
-      completeTask('3'); // Mark Academy Quest Complete
+      completeTask('3');
     } else {
       setDrillResult('wrong');
     }
   };
 
   const handleSendChat = async () => {
-    if (!chatInput.trim() || chatLoading) return;
+    if (!chatInput.trim() || chatLoading || !apiKeyAvailable) return;
     const userMsg = chatInput;
     setChatInput('');
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
@@ -116,7 +124,10 @@ export const PolyglotAcademy: React.FC = () => {
       const data = await getLanguageImmersionResponse(userMsg, lang, level, history);
       setMessages(prev => [...prev, { role: 'model', text: data.reply, help: data.help }]);
       addXp(25);
-      completeTask('3'); // Mark Academy Quest Complete
+      completeTask('3');
+    } catch (e) {
+      console.error("Chat transmission failed:", e);
+      setMessages(prev => [...prev, { role: 'model', text: "Linguistic uplink failed. Please check system configuration." }]);
     } finally {
       setChatLoading(false);
     }
@@ -130,7 +141,7 @@ export const PolyglotAcademy: React.FC = () => {
     } else {
       addVocabulary({ ...vocabForm, language: lang });
       addXp(20);
-      completeTask('3'); // Adding vocab completes the Academy quest too
+      completeTask('3');
     }
     setVocabForm({ term: '', translation: '', category: 'Gaming', language: lang, level: level });
     setShowVocabForm(false);
@@ -149,6 +160,32 @@ export const PolyglotAcademy: React.FC = () => {
   };
 
   const isRTL = lang === 'arabic';
+
+  if (!apiKeyAvailable) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-6 animate-in fade-in duration-1000">
+        <div className="glass max-w-md w-full p-10 rounded-3xl border-2 border-dashed border-emerald-500/20 text-center space-y-6">
+          <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto text-emerald-500 animate-pulse">
+            <AlertTriangle className="w-10 h-10" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-brand font-black text-white">Linguistic Core Offline</h2>
+            <p className="text-slate-400 text-sm leading-relaxed">
+              Polyglot Academy requires a valid Gemini API Key to power real-time immersion and linguistic analysis.
+            </p>
+          </div>
+          <div className="p-4 bg-slate-900/50 rounded-2xl border border-slate-800 text-left space-y-2">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase text-emerald-500 tracking-widest">
+              <Settings className="w-3 h-3" /> System Instruction
+            </div>
+            <p className="text-xs text-slate-500 font-mono">
+              Add your API key to the environment variables as <span className="text-emerald-400">API_KEY</span> in Vercel settings and redeploy.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-in fade-in duration-700 pb-32 space-y-8">
@@ -194,7 +231,6 @@ export const PolyglotAcademy: React.FC = () => {
       </header>
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Daily Reading Card */}
         <div className="glass rounded-2xl p-6 space-y-4 border-t-2 border-emerald-500/50 relative overflow-hidden group">
           <div className="flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-emerald-400">
@@ -304,7 +340,6 @@ export const PolyglotAcademy: React.FC = () => {
           </div>
         </div>
 
-        {/* Vocabulary Vault Pane */}
         <div className="glass rounded-3xl p-6 space-y-5 flex flex-col h-[600px]">
            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-slate-100">
@@ -398,10 +433,8 @@ export const PolyglotAcademy: React.FC = () => {
         </div>
       </div>
 
-      {/* Immersive Reading Fullscreen Overlay */}
       {isReadingFullscreen && (
         <div className="fixed inset-0 z-[70] bg-slate-950/95 backdrop-blur-xl flex flex-col animate-in fade-in duration-500">
-          {/* Header Controls */}
           <div className="flex items-center justify-between p-6 border-b border-slate-800 bg-slate-900/50">
             <div className="flex items-center gap-4">
               <div className="p-2 bg-emerald-500 rounded-xl shadow-lg shadow-emerald-500/20">
@@ -420,7 +453,6 @@ export const PolyglotAcademy: React.FC = () => {
             </button>
           </div>
 
-          {/* Reading Area */}
           <div className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-24">
             <div className="max-w-3xl mx-auto space-y-8">
               <div className="space-y-2 mb-12 border-l-2 border-emerald-500 pl-6">
@@ -443,9 +475,7 @@ export const PolyglotAcademy: React.FC = () => {
             </div>
           </div>
 
-          {/* Bottom Customization Toolbar */}
           <div className="p-6 border-t border-slate-800 bg-slate-900/80 backdrop-blur flex flex-wrap items-center justify-center gap-8">
-             {/* Font Size Scaling */}
              <div className="flex items-center gap-4">
                <div className="flex items-center gap-2 text-slate-500">
                  <Type className="w-4 h-4" />
@@ -464,7 +494,6 @@ export const PolyglotAcademy: React.FC = () => {
                </div>
              </div>
 
-             {/* Line Spacing / Breathing Room */}
              <div className="flex items-center gap-4">
                <div className="flex items-center gap-2 text-slate-500">
                  <AlignJustify className="w-4 h-4" />
