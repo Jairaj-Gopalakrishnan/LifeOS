@@ -18,6 +18,7 @@ interface AppContextType {
   removeMilestone: (id: string) => void;
   activePage: Page;
   setActivePage: (page: Page) => void;
+  isLoaded: boolean;
 }
 
 const DEFAULT_STATS: UserStats = {
@@ -45,26 +46,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load state from localStorage on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedStats = localStorage.getItem('lifeos_stats');
-      const savedTasks = localStorage.getItem('lifeos_tasks');
-      const savedResources = localStorage.getItem('lifeos_resources');
-      const savedJournal = localStorage.getItem('lifeos_journal');
-      const savedMilestones = localStorage.getItem('lifeos_milestones');
+      try {
+        const savedStats = localStorage.getItem('lifeos_stats');
+        const savedTasks = localStorage.getItem('lifeos_tasks');
+        const savedResources = localStorage.getItem('lifeos_resources');
+        const savedJournal = localStorage.getItem('lifeos_journal');
+        const savedMilestones = localStorage.getItem('lifeos_milestones');
 
-      if (savedStats) setStats(JSON.parse(savedStats));
-      if (savedTasks) setTasks(JSON.parse(savedTasks));
-      if (savedResources) setResources(JSON.parse(savedResources));
-      if (savedJournal) setJournal(JSON.parse(savedJournal));
-      if (savedMilestones) setMilestones(JSON.parse(savedMilestones));
-      
-      setIsLoaded(true);
+        if (savedStats) setStats(JSON.parse(savedStats));
+        if (savedTasks) setTasks(JSON.parse(savedTasks));
+        if (savedResources) setResources(JSON.parse(savedResources));
+        if (savedJournal) setJournal(JSON.parse(savedJournal));
+        if (savedMilestones) setMilestones(JSON.parse(savedMilestones));
+      } catch (e) {
+        console.error("Hydration Error:", e);
+      } finally {
+        setIsLoaded(true);
+      }
     }
   }, []);
 
-  // Persist state to localStorage on change
   useEffect(() => {
     if (isLoaded && typeof window !== 'undefined') {
       localStorage.setItem('lifeos_stats', JSON.stringify(stats));
@@ -108,12 +111,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addTask = (task: Omit<Task, 'id' | 'completed'>) => {
-    const newTask = { ...task, id: Math.random().toString(36).substr(2, 9), completed: false };
+    const newTask = { ...task, id: Math.random().toString(36).substr(2, 9), completed: false } as Task;
     setTasks(prev => [newTask, ...prev]);
   };
 
   const addResource = (res: Omit<StudyResource, 'id'>) => {
-    const newRes = { ...res, id: Math.random().toString(36).substr(2, 9) };
+    const newRes = { ...res, id: Math.random().toString(36).substr(2, 9) } as StudyResource;
     setResources(prev => [newRes, ...prev]);
   };
 
@@ -140,7 +143,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addMilestone = (m: Omit<Milestone, 'id'>) => {
-    const newM = { ...m, id: Math.random().toString(36).substr(2, 9) };
+    const newM = { ...m, id: Math.random().toString(36).substr(2, 9) } as Milestone;
     setMilestones(prev => [newM, ...prev]);
   };
 
@@ -153,7 +156,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       stats, tasks, resources, journal, milestones,
       addXp, toggleTask, addTask, addResource, removeResource, 
       updateJournal, addMilestone, removeMilestone,
-      activePage, setActivePage 
+      activePage, setActivePage, isLoaded 
     }}>
       {children}
     </AppContext.Provider>

@@ -2,7 +2,11 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SupportedLanguage, CEFRLevel } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to safely get the AI client
+const getAI = () => {
+  const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : '';
+  return new GoogleGenAI({ apiKey: apiKey || '' });
+};
 
 /**
  * Generates an immersive AI conversation response based on CEFR level and executive interests.
@@ -13,33 +17,34 @@ export async function getLanguageImmersionResponse(
   level: CEFRLevel,
   history: { role: 'user' | 'model', parts: { text: string }[] }[]
 ) {
+  const ai = getAI();
   const levelInstructions: Record<CEFRLevel, string> = {
-    'A1': 'Persona: A helpful neighbor. Constraints: Use present tense only, basic nouns (gaming/food), and 5-word maximum sentences. Vocabulary: Beginner level.',
+    'A1': 'Persona: A helpful neighbor. Constraints: Use present tense only, basic nouns (gaming/food), and 5-word maximum sentences.',
     'A2': 'Persona: A casual colleague. Constraints: Use past tense and basic connectors (but, because). Sentences under 10 words.',
-    'B1': 'Persona: A strategic advisor. Constraints: Use conditional "what if" scenarios (e.g., gaming strategies). Moderate complexity.',
-    'B2': 'Persona: An executive coach. Constraints: Use complex sub-clauses, professional idioms, and debate education policy or critiques. High complexity.'
+    'B1': 'Persona: A strategic advisor. Constraints: Use conditional "what if" scenarios (e.g., gaming strategies).',
+    'B2': 'Persona: An executive coach. Constraints: Use complex sub-clauses, professional idioms, and debate policy. High complexity.'
   };
 
   const helpNuance = level === 'B2' || level === 'B1' 
-    ? 'Provide "nuance clues" that explain the connotation rather than literal translation. Help the user "feel" the language.' 
+    ? 'Provide "nuance clues" explaining connotation rather than literal translation.' 
     : 'Provide full, simple literal translations and highlight basic grammar parts.';
 
   const systemInstruction = `You are a ${level}-level language coach for ${language}. 
-  The user is an executive founder interested in Gaming (League of Legends/D&D), Education Systems, and Cinema.
+  The user is an executive founder interested in Gaming, Education Systems, and Cinema.
   
   CORE MISSION:
-  1. Follow these level-specific constraints: ${levelInstructions[level]}.
-  2. ALWAYS return a structured "help" object to act as the English Safety Net.
+  1. Follow level-specific constraints: ${levelInstructions[level]}.
+  2. ALWAYS return a structured "help" object.
   3. ${helpNuance}
   
   RESPONSE JSON SCHEMA:
   {
     "reply": "The response in ${language}",
     "help": {
-      "translation": "Literal or natural English translation",
-      "slangNotes": "Explanation of gaming terms or idioms used",
-      "grammarTip": "A grammar insight relevant to ${level}",
-      "nuanceClue": "Contextual hint (mandatory for B1/B2)"
+      "translation": "English translation",
+      "slangNotes": "Explanation of context/terms",
+      "grammarTip": "Grammar insight for ${level}",
+      "nuanceClue": "Contextual hint (B1/B2 only)"
     }
   }`;
 
@@ -72,39 +77,32 @@ export async function getLanguageImmersionResponse(
   return JSON.parse(response.text || "{}");
 }
 
-/**
- * Fetches a daily reading paragraph synced with the current date and CEFR level.
- */
 export async function getDailyReadingProse(language: SupportedLanguage, level: CEFRLevel) {
+  const ai = getAI();
   const themes = [
     'the future of decentralized education',
-    'advanced gaming strategy in high-stakes matches',
-    'the philosophy of cinema in the 21st century',
-    'strategic leadership in chaotic environments'
+    'advanced gaming strategy',
+    'the philosophy of cinema',
+    'strategic leadership'
   ];
   const dayOfYear = Math.floor((new Date().getTime() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
   const selectedTheme = themes[dayOfYear % themes.length];
 
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `Write a ${level}-level paragraph in ${language} about ${selectedTheme}. 
-    A1: Present tense, very short sentences. 
-    B2: Rich vocabulary, academic tone.`,
+    contents: `Write a ${level}-level paragraph in ${language} about ${selectedTheme}.`,
     config: {
-      systemInstruction: "You are a specialized prose architect. Return only the raw text in the target language."
+      systemInstruction: "You are a specialized prose architect. Return only the raw text."
     }
   });
   return { text: response.text, theme: selectedTheme };
 }
 
-/**
- * Generates a dynamic CEFR-appropriate drill.
- */
 export async function getScaffoldedDrill(language: SupportedLanguage, level: CEFRLevel, vocabList: string[]) {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `Using vocabulary like [${vocabList.join(', ')}], create a ${level} drill. 
-    If A1/A2, provide 4 multiple choice options. If B1/B2, focus on sentence reconstruction.`,
+    contents: `Using vocabulary [${vocabList.join(', ')}], create a ${level} drill.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -123,13 +121,11 @@ export async function getScaffoldedDrill(language: SupportedLanguage, level: CEF
   return JSON.parse(response.text || "{}");
 }
 
-/**
- * Brand Studio: Content Hooks Generation
- */
 export async function generateContentHooks(topic: string) {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
-    contents: `Generate 3 high-impact executive social media hooks for: ${topic}. Target LinkedIn and Twitter/X.`,
+    contents: `Generate 3 executive content hooks for: ${topic}.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -148,13 +144,11 @@ export async function generateContentHooks(topic: string) {
   return JSON.parse(response.text || "[]");
 }
 
-/**
- * Brand Studio: Architect a course curriculum.
- */
 export async function generateCourseOutline(title: string, audience: string) {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
-    contents: `Architect a 5-module course curriculum for "${title}" specifically for a ${audience} audience.`,
+    contents: `Architect a 5-module course curriculum for "${title}" for ${audience}.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -174,13 +168,11 @@ export async function generateCourseOutline(title: string, audience: string) {
   return JSON.parse(response.text || "[]");
 }
 
-/**
- * Health & Fuel: Recipe Alchemy.
- */
 export async function getAlchemistRecipes(ingredients: string, diet: string, cuisine: string) {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `Create 3 recipes using: ${ingredients}. Diet: ${diet}. Cuisine: ${cuisine}. Optimize for protein and efficiency.`,
+    contents: `Create 3 recipes using: ${ingredients}. Diet: ${diet}. Cuisine: ${cuisine}.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
