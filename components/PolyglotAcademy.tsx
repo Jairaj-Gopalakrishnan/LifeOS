@@ -22,11 +22,7 @@ const SEED_VOCAB: VocabularyTerm[] = [
 export const PolyglotAcademy: React.FC = () => {
   const { addXp, resources, addResource, removeResource } = useAppContext();
   const [lang, setLang] = useState<SupportedLanguage>('dutch');
-  
-  const [level, setLevel] = useState<CEFRLevel>(() => {
-    const saved = localStorage.getItem(`lifeos_level_${lang}`);
-    return (saved as CEFRLevel) || 'A1';
-  });
+  const [level, setLevel] = useState<CEFRLevel>('A1');
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
@@ -48,8 +44,18 @@ export const PolyglotAcademy: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2'];
 
+  // Initial load of level from localStorage
   useEffect(() => {
-    localStorage.setItem(`lifeos_level_${lang}`, level);
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`lifeos_level_${lang}`);
+      if (saved) setLevel(saved as CEFRLevel);
+    }
+  }, [lang]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`lifeos_level_${lang}`, level);
+    }
     refreshDailyReading();
     refreshDrill();
     setMessages([]);

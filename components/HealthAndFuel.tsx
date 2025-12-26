@@ -33,10 +33,7 @@ export const HealthAndFuel: React.FC = () => {
   const { addXp } = useAppContext();
   
   // Fitness State
-  const [workouts, setWorkouts] = useState<Workout[]>(() => {
-    const saved = localStorage.getItem('lifeos_workouts');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [showWorkoutForm, setShowWorkoutForm] = useState(false);
   const [newWorkout, setNewWorkout] = useState<Omit<Workout, 'id' | 'date'>>({
     category: 'Strength',
@@ -53,18 +50,26 @@ export const HealthAndFuel: React.FC = () => {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
   // Grocery List State
-  const [groceryList, setGroceryList] = useState<{ id: string; text: string; completed: boolean }[]>(() => {
-    const saved = localStorage.getItem('lifeos_grocery');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [groceryList, setGroceryList] = useState<{ id: string; text: string; completed: boolean }[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Load from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedWorkouts = localStorage.getItem('lifeos_workouts');
+      const savedGrocery = localStorage.getItem('lifeos_grocery');
+      if (savedWorkouts) setWorkouts(JSON.parse(savedWorkouts));
+      if (savedGrocery) setGroceryList(JSON.parse(savedGrocery));
+      setIsLoaded(true);
+    }
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('lifeos_workouts', JSON.stringify(workouts));
-  }, [workouts]);
-
-  useEffect(() => {
-    localStorage.setItem('lifeos_grocery', JSON.stringify(groceryList));
-  }, [groceryList]);
+    if (isLoaded && typeof window !== 'undefined') {
+      localStorage.setItem('lifeos_workouts', JSON.stringify(workouts));
+      localStorage.setItem('lifeos_grocery', JSON.stringify(groceryList));
+    }
+  }, [workouts, groceryList, isLoaded]);
 
   const handleLogWorkout = () => {
     const workout: Workout = {
@@ -188,7 +193,9 @@ export const HealthAndFuel: React.FC = () => {
         )}
 
         <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-          {workouts.length === 0 ? (
+          {!isLoaded ? (
+            <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-emerald-500" /></div>
+          ) : workouts.length === 0 ? (
             <p className="text-xs text-slate-600 italic text-center py-4">No data streams found for this cycle.</p>
           ) : (
             workouts.map(w => (
@@ -365,7 +372,9 @@ export const HealthAndFuel: React.FC = () => {
         </div>
 
         <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-          {groceryList.length === 0 ? (
+          {!isLoaded ? (
+            <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-emerald-500" /></div>
+          ) : groceryList.length === 0 ? (
             <div className="py-8 text-center border-2 border-dashed border-slate-800 rounded-2xl flex flex-col items-center gap-2 opacity-50">
               <ShoppingCart className="w-8 h-8 text-slate-700" />
               <p className="text-xs text-slate-600">Logistic stream is clear.</p>

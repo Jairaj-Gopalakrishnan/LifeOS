@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { UserStats, Task, Page, StudyResource, JournalEntry, Milestone, Priority } from '../types';
+import { UserStats, Task, Page, StudyResource, JournalEntry, Milestone } from '../types';
 
 interface AppContextType {
   stats: UserStats;
@@ -37,40 +37,43 @@ const INITIAL_TASKS: Task[] = [
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [stats, setStats] = useState<UserStats>(() => {
-    const saved = localStorage.getItem('lifeos_stats');
-    return saved ? JSON.parse(saved) : DEFAULT_STATS;
-  });
-
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    const saved = localStorage.getItem('lifeos_tasks');
-    return saved ? JSON.parse(saved) : INITIAL_TASKS;
-  });
-
-  const [resources, setResources] = useState<StudyResource[]>(() => {
-    const saved = localStorage.getItem('lifeos_resources');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [journal, setJournal] = useState<JournalEntry[]>(() => {
-    const saved = localStorage.getItem('lifeos_journal');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [milestones, setMilestones] = useState<Milestone[]>(() => {
-    const saved = localStorage.getItem('lifeos_milestones');
-    return saved ? JSON.parse(saved) : [];
-  });
-
+  const [stats, setStats] = useState<UserStats>(DEFAULT_STATS);
+  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
+  const [resources, setResources] = useState<StudyResource[]>([]);
+  const [journal, setJournal] = useState<JournalEntry[]>([]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
+  const [isLoaded, setIsLoaded] = useState(false);
 
+  // Load state from localStorage on mount
   useEffect(() => {
-    localStorage.setItem('lifeos_stats', JSON.stringify(stats));
-    localStorage.setItem('lifeos_tasks', JSON.stringify(tasks));
-    localStorage.setItem('lifeos_resources', JSON.stringify(resources));
-    localStorage.setItem('lifeos_journal', JSON.stringify(journal));
-    localStorage.setItem('lifeos_milestones', JSON.stringify(milestones));
-  }, [stats, tasks, resources, journal, milestones]);
+    if (typeof window !== 'undefined') {
+      const savedStats = localStorage.getItem('lifeos_stats');
+      const savedTasks = localStorage.getItem('lifeos_tasks');
+      const savedResources = localStorage.getItem('lifeos_resources');
+      const savedJournal = localStorage.getItem('lifeos_journal');
+      const savedMilestones = localStorage.getItem('lifeos_milestones');
+
+      if (savedStats) setStats(JSON.parse(savedStats));
+      if (savedTasks) setTasks(JSON.parse(savedTasks));
+      if (savedResources) setResources(JSON.parse(savedResources));
+      if (savedJournal) setJournal(JSON.parse(savedJournal));
+      if (savedMilestones) setMilestones(JSON.parse(savedMilestones));
+      
+      setIsLoaded(true);
+    }
+  }, []);
+
+  // Persist state to localStorage on change
+  useEffect(() => {
+    if (isLoaded && typeof window !== 'undefined') {
+      localStorage.setItem('lifeos_stats', JSON.stringify(stats));
+      localStorage.setItem('lifeos_tasks', JSON.stringify(tasks));
+      localStorage.setItem('lifeos_resources', JSON.stringify(resources));
+      localStorage.setItem('lifeos_journal', JSON.stringify(journal));
+      localStorage.setItem('lifeos_milestones', JSON.stringify(milestones));
+    }
+  }, [stats, tasks, resources, journal, milestones, isLoaded]);
 
   const addXp = useCallback((amount: number) => {
     setStats(prev => {
