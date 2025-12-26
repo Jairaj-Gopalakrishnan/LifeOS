@@ -2,10 +2,23 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SupportedLanguage, CEFRLevel } from "../types";
 
-// Helper to safely get the AI client
+// Ultra-defensive helper to get the API key without crashing the script
+const safeGetApiKey = (): string => {
+  try {
+    // Check globalThis for process (standard for many bundlers/environments)
+    // @ts-ignore
+    const key = globalThis?.process?.env?.API_KEY || '';
+    if (key) return key;
+  } catch (e) {}
+  
+  // Fallback to empty string; the AI calls will fail gracefully later 
+  // rather than crashing the entire app boot sequence.
+  return '';
+};
+
 const getAI = () => {
-  const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : '';
-  return new GoogleGenAI({ apiKey: apiKey || '' });
+  const apiKey = safeGetApiKey();
+  return new GoogleGenAI({ apiKey });
 };
 
 /**
@@ -19,34 +32,21 @@ export async function getLanguageImmersionResponse(
 ) {
   const ai = getAI();
   const levelInstructions: Record<CEFRLevel, string> = {
-    'A1': 'Persona: A helpful neighbor. Constraints: Use present tense only, basic nouns (gaming/food), and 5-word maximum sentences.',
-    'A2': 'Persona: A casual colleague. Constraints: Use past tense and basic connectors (but, because). Sentences under 10 words.',
-    'B1': 'Persona: A strategic advisor. Constraints: Use conditional "what if" scenarios (e.g., gaming strategies).',
-    'B2': 'Persona: An executive coach. Constraints: Use complex sub-clauses, professional idioms, and debate policy. High complexity.'
+    'A1': 'Persona: A helpful neighbor. Constraints: Use present tense only, basic nouns, 5-word max sentences.',
+    'A2': 'Persona: A casual colleague. Constraints: Use past tense, basic connectors. 10-word max sentences.',
+    'B1': 'Persona: A strategic advisor. Constraints: Use conditional scenarios and moderate complexity.',
+    'B2': 'Persona: An executive coach. Constraints: Use complex sub-clauses and professional idioms.'
   };
 
   const helpNuance = level === 'B2' || level === 'B1' 
-    ? 'Provide "nuance clues" explaining connotation rather than literal translation.' 
-    : 'Provide full, simple literal translations and highlight basic grammar parts.';
+    ? 'Provide "nuance clues" explaining connotation.' 
+    : 'Provide simple literal translations and basic grammar tips.';
 
   const systemInstruction = `You are a ${level}-level language coach for ${language}. 
-  The user is an executive founder interested in Gaming, Education Systems, and Cinema.
-  
   CORE MISSION:
   1. Follow level-specific constraints: ${levelInstructions[level]}.
   2. ALWAYS return a structured "help" object.
-  3. ${helpNuance}
-  
-  RESPONSE JSON SCHEMA:
-  {
-    "reply": "The response in ${language}",
-    "help": {
-      "translation": "English translation",
-      "slangNotes": "Explanation of context/terms",
-      "grammarTip": "Grammar insight for ${level}",
-      "nuanceClue": "Contextual hint (B1/B2 only)"
-    }
-  }`;
+  3. ${helpNuance}`;
 
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
@@ -79,20 +79,15 @@ export async function getLanguageImmersionResponse(
 
 export async function getDailyReadingProse(language: SupportedLanguage, level: CEFRLevel) {
   const ai = getAI();
-  const themes = [
-    'the future of decentralized education',
-    'advanced gaming strategy',
-    'the philosophy of cinema',
-    'strategic leadership'
-  ];
-  const dayOfYear = Math.floor((new Date().getTime() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+  const themes = ['future of education', 'gaming strategy', 'cinema philosophy', 'leadership'];
+  const dayOfYear = Math.floor(Date.now() / 86400000);
   const selectedTheme = themes[dayOfYear % themes.length];
 
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Write a ${level}-level paragraph in ${language} about ${selectedTheme}.`,
     config: {
-      systemInstruction: "You are a specialized prose architect. Return only the raw text."
+      systemInstruction: "Return only the raw text."
     }
   });
   return { text: response.text, theme: selectedTheme };
@@ -102,7 +97,7 @@ export async function getScaffoldedDrill(language: SupportedLanguage, level: CEF
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `Using vocabulary [${vocabList.join(', ')}], create a ${level} drill.`,
+    contents: `Create a ${level} drill for ${language} using: ${vocabList.join(', ')}.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -125,7 +120,7 @@ export async function generateContentHooks(topic: string) {
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
-    contents: `Generate 3 executive content hooks for: ${topic}.`,
+    contents: `Generate 3 executive hooks for: ${topic}.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -148,7 +143,7 @@ export async function generateCourseOutline(title: string, audience: string) {
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
-    contents: `Architect a 5-module course curriculum for "${title}" for ${audience}.`,
+    contents: `Outline a course: "${title}" for ${audience}.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -172,7 +167,7 @@ export async function getAlchemistRecipes(ingredients: string, diet: string, cui
   const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `Create 3 recipes using: ${ingredients}. Diet: ${diet}. Cuisine: ${cuisine}.`,
+    contents: `Create recipes with: ${ingredients}. Diet: ${diet}. Cuisine: ${cuisine}.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
