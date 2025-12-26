@@ -11,13 +11,19 @@ export type Priority = 'Critical' | 'Essential' | 'Standard';
 
 export interface Task {
   id: string;
-  category: 'fitness' | 'brand' | 'academy' | 'growth';
+  category: string; // Changed from fixed union to string to support custom categories
   title: string;
   description: string;
   xpReward: number;
   completed: boolean;
   type: string;
   priority?: Priority;
+}
+
+export interface TaskCategory {
+  id: string;
+  name: string;
+  color: string;
 }
 
 export type SupportedLanguage = 'dutch' | 'french' | 'arabic';

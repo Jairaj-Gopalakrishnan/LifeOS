@@ -6,7 +6,7 @@ import {
   Target, Plus, Trash2, Heart, Moon, 
   Sun, Shield, AlertCircle, Play, Pause,
   ChevronLeft, ChevronRight, Bookmark,
-  X, CheckCircle2
+  X, CheckCircle2, Tag, Palette
 } from 'lucide-react';
 import { Priority, Task, Milestone } from '../types';
 
@@ -14,13 +14,22 @@ export const GrowthAndPlanning: React.FC = () => {
   const { 
     tasks, addTask, toggleTask, 
     journal, updateJournal, 
-    milestones, addMilestone, removeMilestone, 
+    milestones, addMilestone, removeMilestone,
+    taskCategories, addTaskCategory, removeTaskCategory,
     addXp 
   } = useAppContext();
 
   // Unified To-Do State
   const [showTaskForm, setShowTaskForm] = useState(false);
-  const [newTask, setNewTask] = useState({ title: '', category: 'growth' as any, priority: 'Standard' as Priority });
+  const [newTask, setNewTask] = useState({ 
+    title: '', 
+    category: taskCategories[0]?.id || 'growth', 
+    priority: 'Standard' as Priority 
+  });
+
+  // Custom Category State
+  const [showCatForm, setShowCatForm] = useState(false);
+  const [newCat, setNewCat] = useState({ name: '', color: '#10b981' });
 
   // Vision Calendar State
   const [calendarView, setCalendarView] = useState<'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Annual'>('Monthly');
@@ -48,41 +57,27 @@ export const GrowthAndPlanning: React.FC = () => {
     return () => clearInterval(interval);
   }, [isTimerRunning, meditationTime]);
 
-  // Notification Logic
-  useEffect(() => {
-    if ("Notification" in window) {
-      Notification.requestPermission();
-    }
-    
-    const checkNotification = () => {
-      const now = new Date();
-      if (now.getHours() === 22 && now.getMinutes() === 0) {
-        if (!todayEntry.morningGratitude) {
-          new Notification("LifeOS 2026", {
-            body: "The day is ending. Your Founder's Journal awaits your reflections.",
-            icon: "/favicon.ico"
-          });
-        }
-      }
-    };
-
-    const interval = setInterval(checkNotification, 60000);
-    return () => clearInterval(interval);
-  }, [todayEntry.morningGratitude]);
-
   const handleAddTask = () => {
     if (!newTask.title) return;
     const xp = newTask.priority === 'Critical' ? 250 : newTask.priority === 'Essential' ? 150 : 75;
+    const selectedCat = taskCategories.find(c => c.id === newTask.category);
     addTask({
       title: newTask.title,
-      description: 'System focus task',
+      description: `${selectedCat?.name || 'Standard'} focus task`,
       category: newTask.category,
       xpReward: xp,
-      type: newTask.category,
+      type: selectedCat?.name || 'Task',
       priority: newTask.priority
     });
-    setNewTask({ title: '', category: 'growth', priority: 'Standard' });
+    setNewTask({ ...newTask, title: '' });
     setShowTaskForm(false);
+  };
+
+  const handleAddCategory = () => {
+    if (!newCat.name) return;
+    addTaskCategory(newCat.name, newCat.color);
+    setNewCat({ name: '', color: '#10b981' });
+    setShowCatForm(false);
   };
 
   const handleAddMilestone = () => {
@@ -102,6 +97,14 @@ export const GrowthAndPlanning: React.FC = () => {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  const getCategoryColor = (catId: string) => {
+    return taskCategories.find(c => c.id === catId)?.color || '#1e293b';
+  };
+
+  const getCategoryName = (catId: string) => {
+    return taskCategories.find(c => c.id === catId)?.name || 'General';
+  };
+
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-500 pb-32 space-y-8">
       <header>
@@ -109,77 +112,166 @@ export const GrowthAndPlanning: React.FC = () => {
         <p className="text-slate-400">Architecting 2026 with discipline and depth.</p>
       </header>
 
-      {/* Unified To-Do with Priority Tiers */}
+      {/* Unified To-Do with Dynamic Categories */}
       <section className="glass rounded-2xl p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="flex items-center gap-2 text-lg font-bold text-white">
             <CheckSquare className="w-5 h-5 text-emerald-400" />
             Unified Strategy Board
           </h3>
-          <button 
-            onClick={() => setShowTaskForm(!showTaskForm)}
-            className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500 hover:text-slate-900 transition-all"
-          >
-            {/* Fix: X icon imported from lucide-react */}
-            {showTaskForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setShowCatForm(!showCatForm)}
+              className="p-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-500 rounded-lg hover:bg-blue-500 hover:text-slate-900 transition-all flex items-center gap-1 text-[10px] font-black uppercase"
+            >
+              <Tag className="w-3 h-3" /> Cats
+            </button>
+            <button 
+              onClick={() => setShowTaskForm(!showTaskForm)}
+              className="p-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500 hover:text-slate-900 transition-all"
+            >
+              {showTaskForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
 
+        {/* Category Management Form */}
+        {showCatForm && (
+          <div className="bg-slate-800/80 p-4 rounded-xl space-y-3 border border-slate-700 animate-in slide-in-from-top-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-black uppercase text-slate-400">Category Forge</span>
+              <button onClick={() => setShowCatForm(false)} className="text-slate-500 hover:text-white"><X className="w-3 h-3"/></button>
+            </div>
+            <div className="flex gap-2">
+              <input 
+                type="text" 
+                placeholder="Category Name..."
+                className="flex-1 bg-slate-900 border border-slate-700 p-2 rounded-xl text-xs text-white outline-none focus:border-blue-500"
+                value={newCat.name}
+                onChange={(e) => setNewCat({...newCat, name: e.target.value})}
+              />
+              <input 
+                type="color" 
+                className="w-10 h-10 bg-transparent border-none outline-none cursor-pointer"
+                value={newCat.color}
+                onChange={(e) => setNewCat({...newCat, color: e.target.value})}
+              />
+              <button onClick={handleAddCategory} className="bg-blue-500 text-slate-900 px-4 rounded-xl font-bold text-xs">ADD</button>
+            </div>
+            <div className="flex flex-wrap gap-2 pt-2">
+              {taskCategories.map(cat => (
+                <div key={cat.id} className="flex items-center gap-1 bg-slate-900 p-1 pl-2 pr-1 rounded-lg border border-slate-800">
+                  <span className="text-[8px] font-bold text-slate-300">{cat.name}</span>
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cat.color }} />
+                  {!['fitness', 'brand', 'academy', 'growth'].includes(cat.id) && (
+                    <button onClick={() => removeTaskCategory(cat.id)} className="text-slate-600 hover:text-red-500 ml-1">
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Task Creation Form */}
         {showTaskForm && (
-          <div className="bg-slate-800/50 p-4 rounded-xl space-y-3 border border-slate-700 animate-in zoom-in-95">
+          <div className="bg-slate-800/50 p-4 rounded-xl space-y-4 border border-slate-700 animate-in zoom-in-95">
             <input 
               type="text" 
               placeholder="Task Objective..."
-              className="w-full bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-sm outline-none focus:border-emerald-500"
+              className="w-full bg-slate-900 border border-slate-700 p-3 rounded-xl text-sm outline-none focus:border-emerald-500 text-white"
               value={newTask.title}
               onChange={(e) => setNewTask({...newTask, title: e.target.value})}
             />
-            <div className="grid grid-cols-3 gap-2">
-              {(['Standard', 'Essential', 'Critical'] as Priority[]).map(p => (
-                <button
-                  key={p}
-                  onClick={() => setNewTask({...newTask, priority: p})}
-                  className={`py-1.5 text-[10px] font-black uppercase rounded-lg border transition-all ${newTask.priority === p ? 'bg-emerald-500 text-slate-900 border-emerald-500 shadow-lg' : 'bg-slate-900 border-slate-700 text-slate-500'}`}
-                >
-                  {p}
-                </button>
-              ))}
+            
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-slate-500 px-1">Classification</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {taskCategories.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setNewTask({...newTask, category: cat.id})}
+                    className={`py-2 px-1 rounded-xl text-[10px] font-bold border transition-all truncate flex items-center justify-center gap-2 ${
+                      newTask.category === cat.id 
+                        ? 'bg-emerald-500 text-slate-900 border-emerald-400' 
+                        : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'
+                    }`}
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-slate-500 px-1">Priority Tier</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['Standard', 'Essential', 'Critical'] as Priority[]).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setNewTask({...newTask, priority: p})}
+                    className={`py-2 text-[10px] font-black uppercase rounded-xl border transition-all ${
+                      newTask.priority === p 
+                        ? 'bg-slate-100 text-slate-900 border-slate-100 shadow-lg' 
+                        : 'bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-600'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <button 
               onClick={handleAddTask}
-              className="w-full bg-emerald-500 text-slate-900 font-bold py-2 rounded-xl text-sm"
+              className="w-full bg-emerald-500 text-slate-900 font-black uppercase py-3 rounded-2xl text-xs tracking-widest shadow-lg shadow-emerald-500/10 active:scale-95 transition-all"
             >
-              Add Objective
+              Deploy Objective
             </button>
           </div>
         )}
 
         <div className="space-y-3">
-          {tasks.map(task => (
-            <div 
-              key={task.id} 
-              onClick={() => toggleTask(task.id)}
-              className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center gap-4 ${
-                task.priority === 'Critical' ? 'priority-critical bg-slate-800/60' : 'bg-slate-800/40 border-slate-700'
-              } ${task.completed ? 'opacity-40 grayscale border-slate-800' : ''}`}
-            >
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${task.completed ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600'}`}>
-                {/* Fix: CheckCircle2 icon imported from lucide-react */}
-                {task.completed && <CheckCircle2 className="w-3 h-3 text-slate-900" />}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className={`text-[9px] font-black uppercase tracking-tighter ${task.priority === 'Critical' ? 'text-yellow-500' : 'text-slate-500'}`}>
-                    {task.priority} Tier
-                  </span>
+          {tasks.map(task => {
+            const catColor = getCategoryColor(task.category);
+            const catName = getCategoryName(task.category);
+            return (
+              <div 
+                key={task.id} 
+                onClick={() => toggleTask(task.id)}
+                className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center gap-4 group ${
+                  task.priority === 'Critical' ? 'priority-critical bg-slate-800/60' : 'bg-slate-800/40 border-slate-700'
+                } ${task.completed ? 'opacity-40 grayscale border-slate-800 shadow-none' : 'hover:border-slate-500 shadow-xl shadow-slate-950/20'}`}
+              >
+                <div 
+                  className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                    task.completed ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600 group-hover:border-emerald-500/50'
+                  }`}
+                >
+                  {task.completed && <CheckCircle2 className="w-4 h-4 text-slate-900" />}
                 </div>
-                <p className={`text-sm font-bold ${task.completed ? 'line-through' : 'text-slate-200'}`}>{task.title}</p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span 
+                      className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded text-white"
+                      style={{ backgroundColor: `${catColor}40`, borderLeft: `2px solid ${catColor}` }}
+                    >
+                      {catName}
+                    </span>
+                    <span className={`text-[8px] font-black uppercase tracking-widest ${task.priority === 'Critical' ? 'text-yellow-500' : 'text-slate-500'}`}>
+                      {task.priority}
+                    </span>
+                  </div>
+                  <p className={`text-sm font-bold ${task.completed ? 'line-through text-slate-500' : 'text-slate-100'}`}>{task.title}</p>
+                </div>
+                <div className="text-right flex flex-col items-end">
+                  <span className="text-[10px] font-black text-emerald-500/80">+{task.xpReward} XP</span>
+                </div>
               </div>
-              <div className="text-right">
-                <span className="text-xs font-mono text-emerald-500">+{task.xpReward} XP</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -198,7 +290,7 @@ export const GrowthAndPlanning: React.FC = () => {
                 <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Morning Gratitude</span>
               </div>
               <textarea 
-                className="w-full bg-slate-900/50 border border-slate-700 p-3 rounded-xl text-sm min-h-[80px] focus:border-emerald-500 outline-none"
+                className="w-full bg-slate-900/50 border border-slate-700 p-3 rounded-xl text-sm min-h-[80px] focus:border-emerald-500 outline-none text-white transition-all"
                 placeholder="Today, I am grateful for..."
                 value={todayEntry.morningGratitude}
                 onChange={(e) => updateJournal({ morningGratitude: e.target.value })}
@@ -211,7 +303,7 @@ export const GrowthAndPlanning: React.FC = () => {
                 <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Evening Reflection</span>
               </div>
               <textarea 
-                className="w-full bg-slate-900/50 border border-slate-700 p-3 rounded-xl text-sm min-h-[80px] focus:border-emerald-500 outline-none"
+                className="w-full bg-slate-900/50 border border-slate-700 p-3 rounded-xl text-sm min-h-[80px] focus:border-emerald-500 outline-none text-white transition-all"
                 placeholder="What did I learn today?"
                 value={todayEntry.eveningReflection}
                 onChange={(e) => updateJournal({ eveningReflection: e.target.value })}

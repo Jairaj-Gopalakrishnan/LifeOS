@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { UserStats, Task, Page, StudyResource, JournalEntry, Milestone, VocabularyTerm } from '../types';
+import { UserStats, Task, Page, StudyResource, JournalEntry, Milestone, VocabularyTerm, TaskCategory } from '../types';
 
 interface AppContextType {
   stats: UserStats;
@@ -9,8 +9,10 @@ interface AppContextType {
   vocabulary: VocabularyTerm[];
   journal: JournalEntry[];
   milestones: Milestone[];
+  taskCategories: TaskCategory[];
   addXp: (amount: number) => void;
   toggleTask: (taskId: string) => void;
+  completeTask: (taskId: string) => void;
   addTask: (task: Omit<Task, 'id' | 'completed'>) => void;
   addResource: (res: Omit<StudyResource, 'id'>) => void;
   removeResource: (id: string) => void;
@@ -20,6 +22,8 @@ interface AppContextType {
   updateJournal: (entry: Partial<JournalEntry>) => void;
   addMilestone: (m: Omit<Milestone, 'id'>) => void;
   removeMilestone: (id: string) => void;
+  addTaskCategory: (name: string, color: string) => void;
+  removeTaskCategory: (id: string) => void;
   activePage: Page;
   setActivePage: (page: Page) => void;
   isLoaded: boolean;
@@ -39,6 +43,13 @@ const INITIAL_TASKS: Task[] = [
   { id: '3', category: 'academy', title: 'Daily Study Quest', description: '10min AI Chat or Add Resource', xpReward: 100, completed: false, type: 'Language Goal', priority: 'Standard' }
 ];
 
+const DEFAULT_CATEGORIES: TaskCategory[] = [
+  { id: 'fitness', name: 'Fitness', color: '#10b981' },
+  { id: 'brand', name: 'Brand', color: '#3b82f6' },
+  { id: 'academy', name: 'Academy', color: '#8b5cf6' },
+  { id: 'growth', name: 'Growth', color: '#f59e0b' }
+];
+
 const SEED_VOCAB: VocabularyTerm[] = [
   { id: '1', term: 'Samenspel', translation: 'Cooperation', category: 'Gaming', language: 'dutch', level: 'B1' },
   { id: '2', term: 'Stratégie', translation: 'Strategy', category: 'Gaming', language: 'french', level: 'B2' },
@@ -56,6 +67,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [vocabulary, setVocabulary] = useState<VocabularyTerm[]>(SEED_VOCAB);
   const [journal, setJournal] = useState<JournalEntry[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [taskCategories, setTaskCategories] = useState<TaskCategory[]>(DEFAULT_CATEGORIES);
   const [activePage, setActivePage] = useState<Page>(Page.HOME);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -81,6 +93,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const v = get('lifeos_vocabulary');
         const j = get('lifeos_journal');
         const m = get('lifeos_milestones');
+        const c = get('lifeos_task_categories');
 
         if (s) setStats(s);
         if (t) setTasks(t);
@@ -88,6 +101,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (v) setVocabulary(v);
         if (j) setJournal(j);
         if (m) setMilestones(m);
+        if (c) setTaskCategories(c);
         
         console.log("LifeOS: Data persistence linked.");
       } catch (e) {
@@ -110,11 +124,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem('lifeos_vocabulary', JSON.stringify(vocabulary));
         localStorage.setItem('lifeos_journal', JSON.stringify(journal));
         localStorage.setItem('lifeos_milestones', JSON.stringify(milestones));
+        localStorage.setItem('lifeos_task_categories', JSON.stringify(taskCategories));
       } catch (e) {
         console.error("LifeOS: Persistence Save Failure", e);
       }
     }
-  }, [stats, tasks, resources, vocabulary, journal, milestones, isLoaded]);
+  }, [stats, tasks, resources, vocabulary, journal, milestones, taskCategories, isLoaded]);
 
   const addXp = useCallback((amount: number) => {
     setStats(prev => {
@@ -148,6 +163,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+  const completeTask = (taskId: string) => {
+    setTasks(prev => prev.map(task => {
+      if (task.id === taskId && !task.completed) {
+        addXp(task.xpReward);
+        return { ...task, completed: true };
+      }
+      return task;
+    }));
+  };
+
   const addTask = (task: Omit<Task, 'id' | 'completed'>) => {
     const newTask = { ...task, id: Math.random().toString(36).substr(2, 9), completed: false } as Task;
     setTasks(prev => [newTask, ...prev]);
@@ -156,6 +181,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addResource = (res: Omit<StudyResource, 'id'>) => {
     const newRes = { ...res, id: Math.random().toString(36).substr(2, 9) } as StudyResource;
     setResources(prev => [newRes, ...prev]);
+    completeTask('3');
   };
 
   const removeResource = (id: string) => {
@@ -165,6 +191,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addVocabulary = (term: Omit<VocabularyTerm, 'id'>) => {
     const newTerm = { ...term, id: Math.random().toString(36).substr(2, 9) } as VocabularyTerm;
     setVocabulary(prev => [newTerm, ...prev]);
+    completeTask('3');
   };
 
   const updateVocabulary = (id: string, term: Partial<VocabularyTerm>) => {
@@ -202,12 +229,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setMilestones(prev => prev.filter(m => m.id !== id));
   };
 
+  const addTaskCategory = (name: string, color: string) => {
+    const newCat = { id: name.toLowerCase().replace(/\s+/g, '-'), name, color };
+    setTaskCategories(prev => [...prev, newCat]);
+  };
+
+  const removeTaskCategory = (id: string) => {
+    if (['fitness', 'brand', 'academy', 'growth'].includes(id)) return; // Prevent deleting core categories
+    setTaskCategories(prev => prev.filter(c => c.id !== id));
+  };
+
   return (
     <AppContext.Provider value={{ 
-      stats, tasks, resources, vocabulary, journal, milestones,
-      addXp, toggleTask, addTask, addResource, removeResource,
+      stats, tasks, resources, vocabulary, journal, milestones, taskCategories,
+      addXp, toggleTask, completeTask, addTask, addResource, removeResource,
       addVocabulary, updateVocabulary, removeVocabulary,
       updateJournal, addMilestone, removeMilestone,
+      addTaskCategory, removeTaskCategory,
       activePage, setActivePage, isLoaded 
     }}>
       {children}

@@ -8,11 +8,11 @@ import {
   Trash2, PlusCircle, Maximize2, Minimize2,
   BrainCircuit, RotateCcw,
   Lightbulb, BookText, BarChart2, X, Plus, Edit2, Save,
-  Type, AlignJustify, MoveDiagonal2
+  Type, AlignJustify
 } from 'lucide-react';
 
 export const PolyglotAcademy: React.FC = () => {
-  const { addXp, vocabulary, addVocabulary, updateVocabulary, removeVocabulary } = useAppContext();
+  const { addXp, vocabulary, addVocabulary, updateVocabulary, removeVocabulary, completeTask } = useAppContext();
   const [lang, setLang] = useState<SupportedLanguage>('dutch');
   const [level, setLevel] = useState<CEFRLevel>('A1');
 
@@ -99,6 +99,7 @@ export const PolyglotAcademy: React.FC = () => {
     if (isCorrect) {
       setDrillResult('correct');
       addXp(100);
+      completeTask('3'); // Mark Academy Quest Complete
     } else {
       setDrillResult('wrong');
     }
@@ -115,6 +116,7 @@ export const PolyglotAcademy: React.FC = () => {
       const data = await getLanguageImmersionResponse(userMsg, lang, level, history);
       setMessages(prev => [...prev, { role: 'model', text: data.reply, help: data.help }]);
       addXp(25);
+      completeTask('3'); // Mark Academy Quest Complete
     } finally {
       setChatLoading(false);
     }
@@ -128,6 +130,7 @@ export const PolyglotAcademy: React.FC = () => {
     } else {
       addVocabulary({ ...vocabForm, language: lang });
       addXp(20);
+      completeTask('3'); // Adding vocab completes the Academy quest too
     }
     setVocabForm({ term: '', translation: '', category: 'Gaming', language: lang, level: level });
     setShowVocabForm(false);
