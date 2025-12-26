@@ -1,8 +1,5 @@
 {
   "name": "LifeOS 2026",
-  "description": "A high-end gamified productivity dashboard for tracking fitness, brand building, and language learning with a professional executive aesthetic.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone"
-  ]
+  "description": "Executive productivity OS with AI-powered language mastery, brand building, and biological optimization.",
+  "requestFramePermissions": []
 }
